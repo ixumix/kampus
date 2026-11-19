@@ -1,0 +1,8 @@
+.secrets/
+data/
+.local/
+tests/
+docs/
+**/__pycache__/
+*.pyc
+.DS_Store
