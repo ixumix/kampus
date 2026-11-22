@@ -1,4 +1,5 @@
-// Искра сводки: вращается сам векторный контур, без растеризации SVG-слоя.
+// Искра сводки: одна четырёхконечная звезда (спутник убран по просьбе пользователя, 22 ноября);
+// вращается сам векторный контур, без растеризации SVG-слоя. Поворот на 90° даёт ту же фигуру — в конце нет скачка.
 import { html, useLayoutEffect, useRef } from "../vendor/preact-htm.js";
 
 let uid = 0;
@@ -19,35 +20,34 @@ function ease(x) {
 }
 
 export function Spark({ size = 16, busy = false, cls = "" }) {
-  const ref = useRef(null), idRef = useRef(null), pose = useRef({ main: 0, moon: 0, scale: 1 });
+  const ref = useRef(null), idRef = useRef(null), pose = useRef({ main: 0 });
   if (!idRef.current) idRef.current = "spk" + ++uid;
   const id = idRef.current;
   useLayoutEffect(() => {
     const svg = ref.current, host = svg.parentElement, mq = matchMedia("(prefers-reduced-motion: reduce)");
-    const main = svg.querySelectorAll(".spark-main path"), moon = svg.querySelectorAll(".spark-moon path");
+    const main = svg.querySelectorAll(".spark-main path");
     let raf = 0;
     const draw = (p) => {
       pose.current = p;
-      const m = star(10, 12.5, 8.5, .16, p.main), n = star(19, 4.75, 3.25, .2, p.moon, p.scale);
-      main.forEach((el) => el.setAttribute("d", m)); moon.forEach((el) => el.setAttribute("d", n));
+      const m = star(12, 12, 10, .16, p.main);
+      main.forEach((el) => el.setAttribute("d", m));
     };
     const animate = () => {
       cancelAnimationFrame(raf);
-      if (mq.matches) { draw({ main: 0, moon: 0, scale: 1 }); return; }
+      if (mq.matches) { draw({ main: 0 }); return; }
       const hot = host.matches(":hover") || host.matches(":focus-visible");
       const from = { ...pose.current }, start = performance.now();
       if (Math.abs(from.main) > 180) from.main %= 90;
-      const to = { main: hot ? 90 : 0, moon: hot ? -90 : 0, scale: hot ? 1.25 : 1 };
+      const to = { main: hot ? 90 : 0 };
       if (!busy && Object.keys(to).every((k) => Math.abs(from[k] - to[k]) < .000001)) { draw(to); return; }
       const frame = (now) => {
         const elapsed = now - start;
         if (busy) {
-          const phase = elapsed / 1600, pulse = (1 - Math.cos(phase * Math.PI * 2)) / 2;
-          draw({ main: from.main + phase * 180, moon: from.moon, scale: 1 - .4 * pulse });
+          draw({ main: from.main + (elapsed / 1600) * 180 });
           raf = requestAnimationFrame(frame);
         } else {
           const t = Math.min(1, elapsed / 700), q = t === 1 ? 1 : ease(t);
-          draw({ main: from.main + (to.main - from.main) * q, moon: from.moon + (to.moon - from.moon) * q, scale: from.scale + (to.scale - from.scale) * q });
+          draw({ main: from.main + (to.main - from.main) * q });
           if (t < 1) raf = requestAnimationFrame(frame);
         }
       };
@@ -60,7 +60,6 @@ export function Spark({ size = 16, busy = false, cls = "" }) {
   }, [busy]);
   return html`<svg ref=${ref} class=${"spark" + (busy ? " busy" : "") + (cls ? " " + cls : "")} width=${size} height=${size} viewBox="0 0 24 24" aria-hidden="true">
     <defs><linearGradient id=${id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="t1" /><stop offset="1" class="t2" /></linearGradient></defs>
-    <g class="spark-main"><path d=${star(10, 12.5, 8.5)} /><path class="spark-tint" d=${star(10, 12.5, 8.5)} fill=${`url(#${id})`} /></g>
-    <g class="spark-moon"><path d=${star(19, 4.75, 3.25, .2)} /><path class="spark-tint" d=${star(19, 4.75, 3.25, .2)} fill=${`url(#${id})`} /></g>
+    <g class="spark-main"><path d=${star(12, 12, 10)} /><path class="spark-tint" d=${star(12, 12, 10)} fill=${`url(#${id})`} /></g>
   </svg>`;
 }

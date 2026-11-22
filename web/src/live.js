@@ -131,33 +131,43 @@ export function useMinuteTick() {
 }
 
 /**
- * Мягкое пятно на контуре панели идёт за указателем (только мышь). Один слушатель на документ:
- * координаты пишутся в --gx/--gy той панели, над которой указатель; рисует CSS (.panel::after).
+ * «Прожектор» за мышью: пятно света радиусом ~260 px идёт за указателем и задевает контуры всех плашек рядом —
+ * светлеет не только плашка под курсором, но и соседние. Плашка, от которой курсор ушёл дальше радиуса,
+ * гаснет плавно: пятно сжимается переходом --glow-r (0,6 с). Один слушатель на документ, обновление раз в кадр.
  */
+const GLOW_SEL = ".panel, .doc-type, .lesson.is-now, .lesson.is-next";
+const GLOW_R = 300;
 export function usePanelGlow() {
   useEffect(() => {
     if (!matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-    let raf = 0, last = null, ev = null;
+    let raf = 0, ev = null, lit = new Set();
+    const timers = new WeakMap();
+    const fade = (el) => {
+      el.classList.add("glow-out");
+      el.classList.remove("is-glow");
+      clearTimeout(timers.get(el));
+      timers.set(el, setTimeout(() => { if (!el.classList.contains("is-glow")) el.classList.remove("glow-out"); }, 640));
+    };
     const apply = () => {
       raf = 0;
-      const p = ev.target instanceof Element ? ev.target.closest(".panel") : null;
-      if (last && last !== p) fade(last);
-      last = p;
-      if (!p) return;
-      const r = p.getBoundingClientRect();
-      p.style.setProperty("--gx", (ev.clientX - r.left).toFixed(0) + "px");
-      p.style.setProperty("--gy", (ev.clientY - r.top).toFixed(0) + "px");
-      p.classList.remove("glow-out");
-      p.classList.add("is-glow");
-    };
-    // Уход: пятно сжимается (переход --glow-r), и только потом контур возвращается к обычному.
-    const fade = (p) => {
-      p.classList.add("glow-out");
-      p.classList.remove("is-glow");
-      setTimeout(() => { if (!p.classList.contains("is-glow")) p.classList.remove("glow-out"); }, 460);
+      if (!ev) return;
+      const x = ev.clientX, y = ev.clientY, now = new Set();
+      document.querySelectorAll(GLOW_SEL).forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom);
+        if (Math.hypot(dx, dy) > GLOW_R * 0.8) return;
+        el.style.setProperty("--gx", (x - r.left).toFixed(0) + "px");
+        el.style.setProperty("--gy", (y - r.top).toFixed(0) + "px");
+        el.classList.remove("glow-out");
+        el.classList.add("is-glow");
+        now.add(el);
+      });
+      lit.forEach((el) => { if (!now.has(el)) fade(el); });
+      lit = now;
     };
     const move = (e) => { if (e.pointerType !== "mouse") return; ev = e; if (!raf) raf = requestAnimationFrame(apply); };
-    const leave = () => { if (last) fade(last); last = null; };
+    const leave = () => { lit.forEach(fade); lit = new Set(); ev = null; };
     document.addEventListener("pointermove", move, { passive: true });
     document.documentElement.addEventListener("pointerleave", leave);
     return () => { document.removeEventListener("pointermove", move); document.documentElement.removeEventListener("pointerleave", leave); cancelAnimationFrame(raf); };

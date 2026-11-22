@@ -995,12 +995,20 @@ def run():
             bb = panel.bounding_box()
             dp.mouse.move(bb["x"] + bb["width"] / 2, bb["y"] + 12)
             expect(panel).to_have_class(re.compile("is-glow"))
+            # соседняя плашка («Заказать документ») тоже светится, если курсор у нижнего края первой
+            second = dp.locator(".today-side .panel").nth(1)
+            second.scroll_into_view_if_needed()
+            b2 = second.bounding_box()
+            dp.mouse.move(b2["x"] + b2["width"] / 2, b2["y"] - 30)  # между плашками, курсор не над второй
+            expect(second).to_have_class(re.compile("is-glow"))
+            expect(panel).to_have_class(re.compile("is-glow"))
             dp.mouse.move(2, 2)
+            expect(panel).to_have_class(re.compile("glow-out"))  # гаснет плавно, а не сразу
             expect(panel).not_to_have_class(re.compile("is-glow"))
-            expect(panel).not_to_have_class(re.compile("glow-out"))
+            expect(panel).not_to_have_class(re.compile("glow-out"), timeout=3000)
             dctx.close()
             dsrv.shutdown()
-        check("Живые детали: идущая пара заполняется, пульс «сейчас», баллы дорастают, подсветка контура", live_details)
+        check("Живые детали: идущая пара заполняется, пульс «сейчас», баллы дорастают, прожектор по соседним плашкам", live_details)
         def live_day():
             # Третья партия: срок истекает на глазах, перемена, отметка дела, направленный переход, «Коротко» ↔ полоска недели,
             # карточка входа листает примеры, «Прокрутить день».
