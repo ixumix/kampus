@@ -1314,9 +1314,8 @@ html[data-still] .brand-mark .bm-plate { animation: none; }
 @media (hover: hover) and (pointer: fine) {
   :is(.panel, .doc-type, .lesson).is-glow, :is(.panel, .doc-type, .lesson).glow-out {
     border-color: transparent !important;
-    background: radial-gradient(var(--glow-r) circle at var(--gx, 50%) var(--gy, 50%), var(--glow-fill), var(--glow-bg, var(--panel)) 100%) padding-box,
+    background: linear-gradient(var(--glow-bg, var(--panel)), var(--glow-bg, var(--panel))) padding-box,
       radial-gradient(var(--glow-r) circle at var(--gx, 50%) var(--gy, 50%), var(--glow-c), var(--glow-base, var(--line)) 100%) border-box !important;
-    --glow-fill: color-mix(in oklab, var(--fg) 5%, var(--glow-bg, var(--panel)));
   }
   .panel { transition: --glow-r .6s var(--ease-out); }
   .doc-type { transition: border-color var(--d-out), transform var(--d-base) var(--ease-out), --glow-r .6s var(--ease-out); }
