@@ -196,7 +196,7 @@ export function TodayPage({ route }) {
         <${DemoClock} day=${raw} />
       </div>
       <div class="actions">
-        <${Link} class="btn btn-ai" href="/summary/week" overlay><${Spark} />Сводка недели<span class="ai-go" aria-hidden="true"><${Icon} name="arrowRight" size=${14} /></span></${Link}>
+        <${Link} class="btn btn-ai" href="/summary/week" overlay><${Spark} />Сводка недели</${Link}>
         <${Link} class="btn hide-narrow" href=${withParams("/schedule", { view: "week", date })}><${Icon} name="calendar" />Вся неделя</${Link}>
       </div>
     </div>

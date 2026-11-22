@@ -492,28 +492,23 @@ def run():
         check("Селекторы: плавный конец, точная ширина после живого resize 360–1440", selectors_resize_and_settle)
 
         def ai_hover_and_touch():
+            # «Сводка недели» без стрелки (просьба пользователя, 22 ноября): при наведении реагирует только звезда, кнопка не меняет размер.
             sctx = browser.new_context(viewport={"width": 868, "height": 804})
             sp = sctx.new_page()
             login(sp, base)
-            button, chip = sp.locator('.btn-ai'), sp.locator('.btn-ai .ai-go')  # стрелка выезжает при наведении
+            button = sp.locator('.btn-ai')
+            assert button.locator('.ai-go').count() == 0
             sp.mouse.move(20, 190)
             sp.wait_for_timeout(500)
             before = button.bounding_box()
-            assert chip.bounding_box()['width'] < .1
             button.hover()
-            sp.wait_for_timeout(500)
+            sp.wait_for_timeout(600)
             after = button.bounding_box()
-            assert after['width'] > before['width'] + 10, (before, after)
-            assert abs(after['x']+after['width']-before['x']-before['width']) < .2, (before,after)
-            assert chip.evaluate('el=>+getComputedStyle(el).opacity') == 1
-            sp.mouse.move(20, 190)
-            sp.wait_for_timeout(500)
-            assert abs(button.bounding_box()['width']-before['width']) < .2
+            assert abs(after['width'] - before['width']) < .2 and abs(after['x'] - before['x']) < .2, (before, after)
+            assert button.locator('svg.spark').count() == 1
             # фокус с клавиатуры (:focus-visible): программный focus() после мыши его не включает
             button.focus(); sp.keyboard.press('Shift+Tab'); sp.keyboard.press('Tab')
             assert button.evaluate("el => el.matches(':focus-visible')")
-            sp.wait_for_timeout(500)
-            assert chip.bounding_box()['width'] > 10
             sp.emulate_media(reduced_motion='reduce')
             sp.mouse.move(20, 190)
             sp.locator('.brand').focus()
@@ -524,10 +519,10 @@ def run():
             tctx = browser.new_context(viewport={"width":390,"height":844}, is_mobile=True, has_touch=True, reduced_motion='reduce')
             tp = tctx.new_page()
             login(tp, base)
-            assert tp.locator('.btn-ai .ai-go').bounding_box()['width'] > 10
+            assert tp.locator('.btn-ai .ai-go').count() == 0
             assert tp.locator('.btn-ai').bounding_box()['width'] < 390
             tctx.close()
-        check("Сводка: стрелка по hover/фокусу, рост влево, touch и reduced motion", ai_hover_and_touch)
+        check("Сводка: без стрелки, размер не меняется при наведении, фокус, touch и reduced motion", ai_hover_and_touch)
 
         def free_day_scene():
             # Неделя по настоящему расписанию: 7 плиток, столбики пар, отменённая — пунктиром; наведение и касание.
@@ -820,7 +815,7 @@ def run():
         check("Призрак «было»: старое место переноса, связка, подтверждение и наведение", was_ghost)
 
         def shared_flight():
-            # Сквозной переход: пары «Сегодня» перелетают в колонку дня календаря и обратно; название пары — в деталь.
+            # Сквозной переход: пары «Сегодня» перелетают в колонку дня календаря и обратно; деталь пары открывается без перелёта названия.
             fctx = browser.new_context(viewport={"width": 1280, "height": 800})
             fp = fctx.new_page()
             login(fp, base)
@@ -837,10 +832,11 @@ def run():
             assert fp.locator(".flight").count() == 0
             assert fp.evaluate("[...document.querySelectorAll('#day .lesson')].every(e => e.style.opacity === '')")
             fp.locator(".lesson .lesson-link").first.click()
-            expect(fp.locator(".flight-title")).to_have_count(1)
-            fp.wait_for_timeout(900)
-            assert fp.locator(".flight").count() == 0
+            fp.wait_for_timeout(80)
+            assert fp.locator(".flight, .flight-title").count() == 0  # название не перелетает — шторка въезжает со своим заголовком
+            fp.wait_for_timeout(700)
             assert fp.locator("#lesson-title").evaluate("el => getComputedStyle(el).opacity") == "1"
+            assert fp.locator(".lesson .lesson-link").first.evaluate("el => getComputedStyle(el).visibility") == "visible"
             fp.keyboard.press("Escape")
             fp.wait_for_timeout(400)
             assert fp.evaluate("[...document.querySelectorAll('.lesson-link')].every(e => e.style.visibility === '')")
@@ -849,7 +845,7 @@ def run():
             fp.wait_for_timeout(50)
             assert fp.locator(".flight").count() == 0  # при reduced motion перелёта нет
             fctx.close()
-        check("Сквозной переход: пары «Сегодня» ↔ календарь, название пары → деталь, reduced motion", shared_flight)
+        check("Сквозной переход: пары «Сегодня» ↔ календарь, деталь пары без перелёта названия, reduced motion", shared_flight)
 
         def three_days_scroll():
             # 3 дня: горизонтальная прокрутка сдвигает диапазон на день (Пн–Ср → Вт–Чт), вертикальная — время.

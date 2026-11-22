@@ -8,7 +8,7 @@ import { beforeRoute, visiblePath } from "./router.js";
 import { reduced } from "./motion.js";
 
 const EASE = "cubic-bezier(.32,.72,0,1)";
-const DUR = 460, STAGGER = 30, TITLE_DUR = 420, WAIT = 700;
+const DUR = 460, STAGGER = 30, WAIT = 700;
 const SEL = { today: "#day .lesson[data-lesson]", cal: ".cal-col.is-today .cal-lesson[data-lesson]" };
 const TARGET = { today: "#day .lesson", cal: ".cal-lesson" };
 const kindOf = (p) => (p === "/" ? "today" : p.startsWith("/schedule") ? "cal" : null);
@@ -134,67 +134,11 @@ function capturePages(from, to) {
   raf = requestAnimationFrame(tick);
 }
 
-// ---------------------------------------------------------------- пара → заголовок детали
-function captureTitle(id) {
-  const row = document.querySelector(`.lesson[data-lesson="${id}"], .cal-lesson[data-lesson="${id}"]`);
-  const src = row && row.querySelector(".lesson-link.title, .ci-t");
-  if (!src || !onScreen(row)) return;
-  const r = src.getBoundingClientRect(), cs = getComputedStyle(src);
-  const text = [...src.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
-  if (!text) return;
-  // ширина — по тексту: у строки «Сегодня» ссылка-название растянута на всю колонку
-  const probe = document.createRange(); probe.selectNodeContents(src);
-  const w = Math.min(r.width, Math.ceil(probe.getBoundingClientRect().width) + 2);
-  const root = layer(true);
-  const g = document.createElement("div");
-  g.className = "flight-title";
-  g.textContent = text;
-  g.style.cssText = `width:${w}px;font:${cs.font};letter-spacing:${cs.letterSpacing};color:${cs.color};`
-    + `transform:translate(${r.left}px,${r.top}px)`;
-  root.append(g);
-  src.style.visibility = "hidden";
-  let raf = 0, done = false, shownTitle = null, show = null;
-  const finish = () => {
-    if (done) return; done = true;
-    cancelAnimationFrame(raf);
-    root.remove();
-    src.style.visibility = "";
-    if (shownTitle) { show && show.cancel(); shownTitle.style.opacity = ""; }
-    flights = flights.filter((f) => f !== flight);
-  };
-  const flight = { stop: finish };
-  flights.push(flight);
-  const t0 = performance.now();
-  const tick = () => {
-    const title = document.querySelector(".drawer #lesson-title");
-    if (!title) {
-      if (performance.now() - t0 < WAIT) { raf = requestAnimationFrame(tick); return; }
-      g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: "forwards" }).finished.then(finish, finish);
-      return;
-    }
-    // конечное место заголовка: шторка ещё въезжает, поэтому берём положение внутри неё + её место без сдвига
-    const drawer = title.closest(".drawer");
-    const T = title.getBoundingClientRect(), D = drawer.getBoundingClientRect();
-    const x = drawer.offsetLeft + (T.left - D.left), y = drawer.offsetTop + (T.top - D.top);
-    const tcs = getComputedStyle(title);
-    const k = parseFloat(tcs.fontSize) / parseFloat(cs.fontSize);
-    title.style.opacity = "0"; shownTitle = title;
-    g.animate([
-      { transform: `translate(${r.left}px,${r.top}px) scale(1)`, color: cs.color },
-      { transform: `translate(${x}px,${y}px) scale(${k})`, color: tcs.color },
-    ], { duration: TITLE_DUR, easing: EASE, fill: "forwards" });
-    g.animate([{ opacity: 1 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: TITLE_DUR, fill: "forwards" });
-    show = title.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TITLE_DUR * 0.4, delay: TITLE_DUR * 0.6, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" });
-    show.finished.then(finish, finish);
-  };
-  raf = requestAnimationFrame(tick);
-}
-
 beforeRoute.add((prevVisible, r) => {
   stopAll();
   if (reduced()) return;
-  const m = r.path.match(/^\/schedule\/lesson\/(\d+)$/);
-  if (m && r.state.overlay) { captureTitle(m[1]); return; }
+  // Деталь пары: название не перелетает — шторка въезжает справа уже со своим заголовком (просьба пользователя, 22 ноября).
+  if (r.state.overlay) return;
   const a = kindOf(prevVisible), b = kindOf(visiblePath(r));
   if (a && b && a !== b && !r.state.overlay) capturePages(a, b);
 });
